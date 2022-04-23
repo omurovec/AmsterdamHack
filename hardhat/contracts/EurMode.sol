@@ -11,6 +11,8 @@ import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol"
 
 import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
+import "hardhat/console.sol";
+
 contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     // aave flash loan
     IPool public immutable override POOL;
@@ -46,12 +48,16 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         base = IERC20(_base);
         quote = IERC20(_quote);
 
+        console.log("get base decimals");
         baseDecimals = IERC20Metadata(_base).decimals();
+        console.log("get quote decimals");
         quoteDecimals = IERC20Metadata(_quote).decimals();
 
+        console.log("check token0");
         quoteIsZeroSlot = IUniswapV3PoolImmutables(_uniPool).token0() == _quote;
 
         // approve all future actions
+        console.log("approve shit");
         IERC20(_base).approve(address(_pool), type(uint256).max);
         IERC20(_quote).approve(address(_pool), type(uint256).max);
         IERC20(_base).approve(address(_uniPool), type(uint256).max);

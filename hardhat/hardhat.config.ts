@@ -25,10 +25,27 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
 const config: HardhatUserConfig = {
   solidity: "0.8.10",
   networks: {
+    hardhat: {
+      forking: {
+        url: process.env.ETH_NODE_URI_POLYGON || "",
+      },
+      accounts: {
+        mnemonic: process.env.MNEMONIC || "",
+      },
+    },
+
     ropsten: {
       url: process.env.ROPSTEN_URL || "",
-      accounts:
-        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      accounts: {
+        mnemonic: process.env.MNEMONIC || "",
+      },
+    },
+    tenderly: {
+      url: process.env.TENDERLY_URL || "",
+      // chainId: 1,
+      accounts: {
+        mnemonic: process.env.MNEMONIC || "",
+      },
     },
   },
   gasReporter: {
