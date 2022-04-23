@@ -77,10 +77,15 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         bool isLong
     ) external {
         IERC20 flashLoanToken = isLong ? base : quote;
+
+
+        console.log("transfer tokens");
         flashLoanToken.transferFrom(msg.sender, address(this), collateral);
 
         uint256 flashLoanAmount = collateral * (leverage - 1);
 
+
+        console.log("flashloan simple");
         POOL.flashLoanSimple(
             address(this),
             address(flashLoanToken),
@@ -105,6 +110,7 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
             uint256 borrowAmount
         ) = abi.decode(params, (address, bool, uint256, uint256));
 
+        console.log("borrow on aave an swap on uni");
         borrowOnAaveAndSwapOnUni(
             user,
             isLong,
@@ -126,10 +132,16 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     ) internal {
         // Total amount borrowed in flash loans
         uint256 supplyAmount = collateral + flashLoanAmount;
+
+        console.log("supply assets");
+
         POOL.supply(address(isLong ? base : quote), supplyAmount, user, 0);
 
         // User might have to give credit allocation to the contract via `approveDelegation()`
         // see: https://docs.aave.com/developers/core-contracts/pool#borrow for reference
+
+        console.log("borrow assets");
+
         POOL.borrow(address(isLong ? quote : base), borrowAmount, 2, 0, user);
 
         // Swap the tokens
@@ -139,6 +151,8 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         // else if  long  & base  is token0 than swap token1 for token0 => false
         // else if  short & quote is token0 than swap token1 for token0 => false
         // else if  long  & base  is token0 than swap token0 for token1 => true
+
+        console.log("swap with uniswap");
 
         uniswap.swap(
             address(this),
@@ -155,6 +169,9 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         int256 amount1Delta,
         bytes calldata data
     ) external override {
+
+        console.log("catch callback");
+
         (bool isLong, uint256 borrowAmount, uint256 targetAmount) = abi.decode(
             data,
             (bool, uint256, uint256)
@@ -176,6 +193,9 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
                 : uint256(amount0Delta) > targetAmount,
             "Not enough received"
         );
+
+
+        console.log("sacrifice to uni gods");
 
         // sacrifice to the gods of uniswap so that they will be merciful to us.
         IERC20(isLong ? quote : base).transfer(address(uniswap), borrowAmount);
