@@ -1,11 +1,8 @@
 import { ethers } from "hardhat";
-import { IQuoter } from "@uniswap/v3-periphery/contracts/interfaces";
 
 import {
-  AAVE_POOL_ADDRESS,
   UNI_POOL_ADDRESS,
   UNI_QUOTER_ADDRESS,
-  AAVE_POOL_ADDRESSES_PROVIDER,
   USDC_ADDRESS,
   EURS_ADDRESS,
 } from "./constants";
@@ -19,9 +16,32 @@ async function main() {
 
   const collateral = ethers.utils.parseUnits("100", decimals);
   const isLong = true;
-  const leverage = "5";
+  const leverage = 5;
 
-  const borrowAmount = await quoter.q;
+  const uniPool = await ethers.getContractAt(
+    "IUniswapV3PoolImmutables",
+    UNI_POOL_ADDRESS
+  );
+
+  const fees = await uniPool.fee();
+  const token0 = await uniPool.token0();
+  const token1 = await uniPool.token1();
+  console.log({
+    USDC_ADDRESS,
+    token0,
+    EURS_ADDRESS,
+    token1,
+    fees,
+    collateral: collateral.mul(leverage - 1),
+  });
+
+  const borrowAmount = await quoter.callStatic.quoteExactOutputSingle(
+    USDC_ADDRESS,
+    EURS_ADDRESS,
+    fees,
+    collateral.mul(leverage - 1),
+    0
+  );
 
   await eurs.approve(eurMode.address, collateral);
 

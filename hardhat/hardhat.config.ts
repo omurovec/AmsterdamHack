@@ -53,11 +53,6 @@ const config: HardhatUserConfig = {
     project: "staging-test",
     username: "increment",
   },
-  typechain: {
-    externalArtifacts: [
-      "./node_modules/@uniswap/v3-periphery/artifacts/contracts/interfaces/IQuoter.sol/IQuoter.json",
-    ],
-  },
 };
 
 export default config;
