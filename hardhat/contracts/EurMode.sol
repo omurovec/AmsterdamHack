@@ -11,6 +11,8 @@ import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol"
 
 import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
+
+
 import "hardhat/console.sol";
 
 contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
@@ -31,7 +33,14 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     uint8 internal constant oracleDecimals = 8;
     bool internal immutable quoteIsZeroSlot;
 
+
     uint256 internal constant WAD = 1e18;
+
+    // from uniswap - used for min prices
+    uint160 internal constant MIN_SQRT_RATIO = 4295128739;
+    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
+
+
 
     constructor(
         IPool _pool,
@@ -85,10 +94,10 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
 
         console.log("flashloan simple");
         POOL.flashLoanSimple(
-            address(this),
+            address(this),  
             address(flashLoanToken),
             flashLoanAmount,
-            abi.encode(msg.sender, isLong, collateral, borrowAmount),
+            abi.encode(msg.sender, isLong, collateral, borrowAmount, address(flashLoanToken)),
             0
         );
     }
@@ -105,8 +114,9 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
             address user,
             bool isLong,
             uint256 collateral,
-            uint256 borrowAmount
-        ) = abi.decode(params, (address, bool, uint256, uint256));
+            uint256 borrowAmount,
+            address flashLoanToken
+        ) = abi.decode(params, (address, bool, uint256, uint256, address));
 
         console.log("borrow on aave an swap on uni");
         borrowOnAaveAndSwapOnUni(
@@ -117,6 +127,12 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
             amount,
             premium
         );
+
+        require(IERC20(flashLoanToken).balanceOf(address(this)) > amount + premium, "Contract balances are not sufficient");
+        console.log("owns so much token");
+        console.log("tries to pay", amount+ premium);
+        
+        IERC20(flashLoanToken).transfer(address(POOL), amount+ premium);
     }
 
     // borrow collateral and swap on uni
@@ -152,11 +168,13 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
 
         console.log("swap with uniswap");
 
+        bool zeroForOne = isLongToken0(isLong);
+
         uniswap.swap(
             address(this),
-            false, /* zeroForOne*/
+            zeroForOne, /* zeroForOne*/
             int256(borrowAmount),
-            0,
+            zeroForOne ? MIN_SQRT_RATIO + 1 : MAX_SQRT_RATIO - 1, /* minRatio */
             abi.encode(isLong, borrowAmount, flashLoanAmount + premium)
         );
     }
@@ -174,10 +192,17 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
             (bool, uint256, uint256)
         );
 
-        bool token0Direction = isLongToken0(isLong);
+        bool token0Direction = !isLongToken0(isLong);
 
         // check return values
         require(amount0Delta != 0 && amount1Delta != 0, "No swap");
+
+
+        console.log("amount0Delta");
+        console.logInt(amount0Delta);
+        
+        console.log("amount1Delta");
+        console.logInt(amount1Delta);
 
         require(
             token0Direction ? amount1Delta > 0 : amount0Delta > 0,
