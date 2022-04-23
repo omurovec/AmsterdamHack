@@ -1,6 +1,27 @@
-type Gravatar @entity {
+type Pool @entity {
   id: ID!
-  owner: Bytes!
-  displayName: String!
-  imageUrl: String!
+  baseMarket: Market!
+  quoteMarket: Market!
+}
+
+type Market @entity {
+  id: ID!
+  rate: [Rate!]!
+}
+
+type Rate @entity {
+  id: ID!
+  borrowRate: BigInt!
+  supplyRate: BigInt!
+  borrowIndex: BigInt!
+  supplyIndex: BigInt!
+}
+
+type User @entity {
+  id: ID!
+  direction: Int!
+  userSupplyAmount: BigInt!
+  userBorrowAmount: BigInt!
+  userSupplyIndex: BigInt!
+  userBorrowIndex: BigInt!
 }
