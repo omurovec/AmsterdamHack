@@ -26,6 +26,9 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
+  console.log("network is", env.network.name);
+  console.log("tenderly rpc is", process.env.ETH_NODE_URI_TENDERLY);
+
   // We get the contract to deploy
   const EurMode = await ethers.getContractFactory("EurMode");
   const eurMode = await EurMode.deploy(
@@ -35,8 +38,6 @@ async function main() {
     USDC_ADDRESS,
     UNI_POOL_ADDRESS
   );
-
-  console.log("tenderly rpc is", process.env.ETH_NODE_URI_TENDERLY);
 
   /* 
   IPool _pool

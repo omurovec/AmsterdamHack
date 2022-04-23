@@ -36,7 +36,7 @@ const config: HardhatUserConfig = {
     },
     tenderly: {
       url: process.env.ETH_NODE_URI_TENDERLY || "",
-      // chainId: 1,
+      chainId: 137,
       accounts: {
         mnemonic: process.env.MNEMONIC || "",
       },
