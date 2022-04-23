@@ -1,0 +1,1 @@
+import "@aave/core-v3/contracts/interfaces/ICreditDelegationToken.sol";

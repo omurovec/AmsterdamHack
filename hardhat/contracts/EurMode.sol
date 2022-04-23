@@ -128,7 +128,8 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         uint256 supplyAmount = collateral + flashLoanAmount;
         POOL.supply(address(isLong ? base : quote), supplyAmount, user, 0);
 
-        // User might have to give credit allocation to the contract
+        // User might have to give credit allocation to the contract via `approveDelegation()`
+        // see: https://docs.aave.com/developers/core-contracts/pool#borrow for reference
         POOL.borrow(address(isLong ? quote : base), borrowAmount, 2, 0, user);
 
         // Swap the tokens

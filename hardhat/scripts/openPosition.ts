@@ -6,6 +6,7 @@ import {
   USDC_ADDRESS,
   EURS_ADDRESS,
 } from "./constants";
+import { approveDelegation } from "./utils";
 
 async function main() {
   const eurMode = await ethers.getContractAt("EurMode", "0x");
@@ -17,6 +18,17 @@ async function main() {
   const collateral = ethers.utils.parseUnits("100", decimals);
   const isLong = true;
   const leverage = 5;
+
+  await approveDelegation(
+    USDC_ADDRESS,
+    ethers.constants.MaxUint256,
+    "our address"
+  );
+  await approveDelegation(
+    EURS_ADDRESS,
+    ethers.constants.MaxUint256,
+    "our address"
+  );
 
   const uniPool = await ethers.getContractAt(
     "IUniswapV3PoolImmutables",
