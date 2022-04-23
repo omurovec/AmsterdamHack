@@ -3,6 +3,8 @@
 //
 // When running the script with `npx hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
+import env = require("hardhat");
+
 import { ethers } from "hardhat";
 import {
   AAVE_POOL_ADDRESS,
@@ -11,6 +13,10 @@ import {
   UNI_POOL_ADDRESS,
   USDC_ADDRESS,
 } from "./constants";
+
+import * as dotenv from "dotenv";
+
+dotenv.config();
 
 async function main() {
   // Hardhat always runs the compile task when running scripts with its command
@@ -30,6 +36,8 @@ async function main() {
     UNI_POOL_ADDRESS
   );
 
+  console.log("tenderly rpc is", process.env.ETH_NODE_URI_TENDERLY);
+
   /* 
   IPool _pool
   IPoolAddressesProvider _addressesProvider 
@@ -40,6 +48,10 @@ async function main() {
 
   await eurMode.deployed();
 
+  await env.tenderly.verify({
+    name: "EurMode",
+    address: eurMode.address,
+  });
   console.log("EURMode deployed to:", eurMode.address);
 }
 

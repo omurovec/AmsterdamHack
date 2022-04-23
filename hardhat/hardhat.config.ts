@@ -6,6 +6,7 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
+import "@tenderly/hardhat-tenderly";
 
 dotenv.config();
 
@@ -33,15 +34,8 @@ const config: HardhatUserConfig = {
         mnemonic: process.env.MNEMONIC || "",
       },
     },
-
-    ropsten: {
-      url: process.env.ROPSTEN_URL || "",
-      accounts: {
-        mnemonic: process.env.MNEMONIC || "",
-      },
-    },
     tenderly: {
-      url: process.env.TENDERLY_URL || "",
+      url: process.env.ETH_NODE_URI_TENDERLY || "",
       // chainId: 1,
       accounts: {
         mnemonic: process.env.MNEMONIC || "",
@@ -54,6 +48,10 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  tenderly: {
+    project: "staging-test",
+    username: "increment",
   },
   typechain: {
     externalArtifacts: [
