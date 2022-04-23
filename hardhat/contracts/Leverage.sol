@@ -7,25 +7,27 @@ import "@aave/core-v3/contracts/interfaces/IAaveOracle.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolActions.sol";
+import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
 
-contract Leverage is IFlashLoanSimpleReceiver {
-    enum Direction {
-        Long,
-        Short
-    }
+import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
+contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
+    // aave flash loan
     IPool public immutable override POOL;
     IPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
-    IUniswapV3PoolActions public immutable override UNI_POOL;
-    IAaveOracle public immutable AAVE_ORACLE;
-    IERC20 public immutable BASE;
-    IERC20 public immutable QUOTE;
 
-    uint8 public immutable BASE_DECIMALS;
-    uint8 public immutable QUOTE_DECIMALS;
-    uint8 internal constant immutable ORACLE_DECIMALS = 8;
+    // uniswap
+    IUniswapV3PoolActions public immutable uniswap;
 
-    bool internal immutable baseIsZeroSlot;
+    // tokens
+    IERC20 public immutable base;
+    IERC20 public immutable quote;
+
+    // parameters
+    uint8 public immutable baseDecimals;
+    uint8 public immutable quoteDecimals;
+    uint8 internal constant oracleDecimals = 8;
+    bool internal immutable quoteIsZeroSlot;
 
     uint256 internal constant WAD = 1e18;
 
@@ -34,91 +36,134 @@ contract Leverage is IFlashLoanSimpleReceiver {
         IPoolAddressesProvider _addressesProvider,
         address _base,
         address _quote,
-        IAaveOracle _aave_oracle,
         address _uniPool
     ) {
         POOL = _pool;
         ADDRESSES_PROVIDER = _addressesProvider;
-        UNI_POOL = IUniswapV3PoolActions(_uniPool);
-        BASE = IERC20(_base);
-        QUOTE = IERC20(_quote);
-        AAVE_ORACLE = _aave_oracle;
 
-        BASE_DECIMALS = IERC20Metadata(_base).decimals();
-        QUOTE_DECIMALS = IERC20Metadata(_quote).decimals();
-        baseIsZeroSlot = IUniswapV3PoolImmutables(_uniPool).token0() == _base;
+        uniswap = IUniswapV3PoolActions(_uniPool);
 
+        base = IERC20(_base);
+        quote = IERC20(_quote);
+
+        baseDecimals = IERC20Metadata(_base).decimals();
+        quoteDecimals = IERC20Metadata(_quote).decimals();
+
+        quoteIsZeroSlot = IUniswapV3PoolImmutables(_uniPool).token0() == _quote;
+
+        // approve all future actions
         IERC20(_base).approve(address(_pool), type(uint256).max);
         IERC20(_quote).approve(address(_pool), type(uint256).max);
         IERC20(_base).approve(address(_uniPool), type(uint256).max);
         IERC20(_quote).approve(address(_uniPool), type(uint256).max);
     }
 
+    /// @notice Open a leveraged long position on Aave V3
+    /// @param borrowAmount Amount of base token to borrow from Aave V3 (has to cover the flash loan + fees and slippage)
+    /// @param collateral Amount of collateral available
+    /// @param leverage Desired leverage factor
+    /// @param isLong Long (EUR/USD) or short
+
+    function takeOutFlashLoan(
+        uint256 borrowAmount,
+        uint256 collateral,
+        uint8 leverage,
+        bool isLong
+    ) external {
+        IERC20 flashLoanToken = isLong ? base : quote;
+        flashLoanToken.transferFrom(msg.sender, address(this), collateral);
+
+        uint256 flashLoanAmount = collateral * (leverage - 1);
+
+        POOL.flashLoanSimple(
+            address(this),
+            address(flashLoanToken),
+            flashLoanAmount,
+            abi.encode(msg.sender, isLong, collateral, borrowAmount),
+            0
+        );
+    }
+
+    // callback by aave flash loan
     function executeOperation(
         address asset,
         uint256 amount,
         uint256 premium,
         address initiator,
         bytes calldata params
-    ) external returns (bool) {
-        (bool isLong, uint256 collateral) = abi.decode(params, (bool, uint256));
-        setupPosition(isLong, collateral, amount);
-    }
+    ) external override returns (bool) {
+        (
+            address user,
+            bool isLong,
+            uint256 collateral,
+            uint256 borrowAmount
+        ) = abi.decode(params, (address, bool, uint256, uint256));
 
-    function openPosition(
-        bool isLong,
-        uint256 collateral,
-        uint8 leverage
-    ) external returns (bool) {
-        IERC20 flashLoanToken = isLong ? BASE : QUOTE;
-        flashLoanToken.transferFrom(msg.sender, address(this), collateral);
-
-        uint256 flashLoanAmount = collateral * leverage - collateral;
-
-        POOL.flashLoanSimple(
-            address(this),
-            address(flashLoanToken),
-            flashLoanAmount,
-            abi.encode(isLong, collateral),
-            0
+        borrowOnAaveAndSwapOnUni(
+            user,
+            isLong,
+            collateral,
+            borrowAmount,
+            amount,
+            premium
         );
     }
 
-    function setupPosition(
+    // borrow collateral and swap on uni
+    function borrowOnAaveAndSwapOnUni(
+        address user,
         bool isLong,
         uint256 collateral,
-        uint256 loanAmount
-    ) internal returns (bool) {
-        address supplyToken = address(isLong ? BASE : QUOTE);
-        address borrowToken = address(isLong ? QUOTE : BASE);
-
-        // Total amount borrowed in flash loan
-        // 400
-        uint256 loanAmountWei = isLong
-            ? _toWad(loanAmount, BASE_DECIMALS)
-            : _toWad(loanAmount, QUOTE_DECIMALS);
-
-        // 500
-        uint256 supplyAmount = collateral + loanAmount;
-
-        POOL.supply(supplyToken, supplyAmount, msg.sender, 0);
-
-        uint256 basePrice = _getBasePrice();
-
-        uint256 borrowAmount = isLong
-            ? (loanAmountWei * basePrice) / WAD
-            : (loanAmountWei * WAD) / basePrice;
+        uint256 borrowAmount,
+        uint256 flashLoanAmount,
+        uint256 premium
+    ) internal {
+        // Total amount borrowed in flash loans
+        uint256 supplyAmount = collateral + flashLoanAmount;
+        POOL.supply(
+            address(isLong ? base : quote),
+            supplyAmount,
+            msg.sender,
+            0
+        );
 
         // User might have to give credit allocation to the contract
-        POOL.borrow(borrowToken, borrowAmount, 2, 0, msg.sender);
+        POOL.borrow(
+            address(isLong ? quote : base),
+            borrowAmount,
+            2,
+            0,
+            msg.sender
+        );
+
+        // Swap the tokens
+
+        // zeroForOne should be
+        // if       long  & quote is token0 than swap token0 for token1 => true
+        // else if  long  & base  is token0 than swap token1 for token0 => false
+        // else if  short & quote is token0 than swap token1 for token0 => false
+        // else if  long  & base  is token0 than swap token0 for token1 => true
+
+        uniswap.swap(
+            address(this),
+            isLong ? quoteIsZeroSlot : !quoteIsZeroSlot, /* zeroForOne*/
+            int256(borrowAmount),
+            0,
+            abi.encode(user, isLong, flashLoanAmount + premium)
+        );
     }
 
-    function _getBasePrice() internal returns (uint256) {
-        return
-            _toWad(AAVE_ORACLE.getAssetPrice(address(BASE)), ORACLE_DECIMALS);
-    }
+    // callback by uniswap
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes calldata data
+    ) external override {
+        (address user, bool isLong, uint256 targetAmount) = abi.decode(
+            data,
+            (address, bool, uint256)
+        );
 
-    function _toWad(uint256 amount, uint8 decimals) internal returns (uint256) {
-        return amount * 10**(18 - decimals);
+        // check return values
     }
 }
