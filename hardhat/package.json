@@ -41,6 +41,8 @@
     "@uniswap/v3-core": "^1.0.1"
   },
   "scripts": {
+    "clean": "hardhat clean",
+    "compile": "hardhat compile --force",
     "deploy": "hardhat run scripts/deploy.ts --network localhost",
     "open-position": "hardhat run scripts/openPosition.ts --network localhost",
     "check-position": "yarn hardhat run scripts/checkPosition.ts --network localhost"
