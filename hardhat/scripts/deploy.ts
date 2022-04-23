@@ -54,6 +54,11 @@ async function main() {
     address: eurMode.address,
   });
   console.log("EURMode deployed to:", eurMode.address);
+
+  await env.tenderly.persistArtifacts({
+    name: "EurMode",
+    address: eurMode.address,
+  });
 }
 
 // We recommend this pattern to be able to use async/await everywhere

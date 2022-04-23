@@ -1,17 +1,33 @@
-import { ethers } from "hardhat";
+import { parseEther } from "ethers/lib/utils";
+import env, { ethers } from "hardhat";
 
 import {
   UNI_POOL_ADDRESS,
   UNI_QUOTER_ADDRESS,
   USDC_ADDRESS,
   EURS_ADDRESS,
+  EURS_HOLDER,
 } from "./constants";
 import { approveDelegation } from "./utils";
 
 async function main() {
-  const eurMode = await ethers.getContractAt("EurMode", "0x");
+  const eurMode = await ethers.getContractAt(
+    "EurMode",
+    "0xb56b55b1e36bdf01e016c30b0a62f9ff745155f4"
+  );
   const eurs = await ethers.getContractAt("IERC20Metadata", EURS_ADDRESS);
   const quoter = await ethers.getContractAt("IQuoter", UNI_QUOTER_ADDRESS);
+
+  await env.network.provider.request({
+    method: "hardhat_impersonateAccount",
+    params: [EURS_HOLDER],
+  });
+  await env.network.provider.send("hardhat_setBalance", [
+    EURS_HOLDER,
+    "0x100000000000000000000000000000",
+  ]);
+
+  const eursHolder = await ethers.getSigner(EURS_HOLDER);
 
   const decimals = await eurs.decimals();
 
@@ -22,12 +38,12 @@ async function main() {
   await approveDelegation(
     USDC_ADDRESS,
     ethers.constants.MaxUint256,
-    "our address"
+    eurMode.address
   );
   await approveDelegation(
     EURS_ADDRESS,
     ethers.constants.MaxUint256,
-    "our address"
+    eurMode.address
   );
 
   const uniPool = await ethers.getContractAt(
@@ -55,9 +71,13 @@ async function main() {
     0
   );
 
-  await eurs.approve(eurMode.address, collateral);
+  await eurs.connect(eursHolder).approve(eurMode.address, collateral);
 
-  await eurMode.takeOutFlashLoan(borrowAmount, collateral, leverage, isLong);
+  console.log("TEST");
+
+  await eurMode
+    .connect(eursHolder)
+    .takeOutFlashLoan(borrowAmount, collateral, leverage, isLong);
 }
 
 main();
