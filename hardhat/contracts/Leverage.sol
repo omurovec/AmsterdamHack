@@ -86,10 +86,10 @@ contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
 
     // callback by aave flash loan
     function executeOperation(
-        address asset,
+        address, /* asset */
         uint256 amount,
         uint256 premium,
-        address initiator,
+        address, /* initiator */
         bytes calldata params
     ) external override returns (bool) {
         (
@@ -120,21 +120,10 @@ contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     ) internal {
         // Total amount borrowed in flash loans
         uint256 supplyAmount = collateral + flashLoanAmount;
-        POOL.supply(
-            address(isLong ? base : quote),
-            supplyAmount,
-            msg.sender,
-            0
-        );
+        POOL.supply(address(isLong ? base : quote), supplyAmount, user, 0);
 
         // User might have to give credit allocation to the contract
-        POOL.borrow(
-            address(isLong ? quote : base),
-            borrowAmount,
-            2,
-            0,
-            msg.sender
-        );
+        POOL.borrow(address(isLong ? quote : base), borrowAmount, 2, 0, user);
 
         // Swap the tokens
 
@@ -146,10 +135,10 @@ contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
 
         uniswap.swap(
             address(this),
-            isLong ? quoteIsZeroSlot : !quoteIsZeroSlot, /* zeroForOne*/
+            isLongToken0(isLong), /* zeroForOne*/
             int256(borrowAmount),
             0,
-            abi.encode(user, isLong, flashLoanAmount + premium)
+            abi.encode(isLong, borrowAmount, flashLoanAmount + premium)
         );
     }
 
@@ -159,11 +148,33 @@ contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         int256 amount1Delta,
         bytes calldata data
     ) external override {
-        (address user, bool isLong, uint256 targetAmount) = abi.decode(
+        (bool isLong, uint256 borrowAmount, uint256 targetAmount) = abi.decode(
             data,
-            (address, bool, uint256)
+            (bool, uint256, uint256)
         );
 
+        bool token0Direction = isLongToken0(isLong);
+
         // check return values
+        require(amount0Delta != 0 && amount1Delta != 0, "No swap");
+
+        require(
+            token0Direction ? amount1Delta > 0 : amount0Delta > 0,
+            "Wrong balance received"
+        );
+
+        require(
+            token0Direction
+                ? uint256(amount1Delta) > targetAmount
+                : uint256(amount0Delta) > targetAmount,
+            "Not enough received"
+        );
+
+        // sacrifice to the gods of uniswap so that they will be merciful to us.
+        IERC20(isLong ? quote : base).transfer(address(uniswap), borrowAmount);
+    }
+
+    function isLongToken0(bool isLong) internal view returns (bool) {
+        return isLong ? quoteIsZeroSlot : !quoteIsZeroSlot;
     }
 }
