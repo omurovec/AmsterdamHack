@@ -14,11 +14,7 @@ import {
   USDC_ADDRESS,
 } from "./constants";
 
-import * as dotenv from "dotenv";
-
-dotenv.config();
-
-async function main() {
+export async function deployContract() {
   // Hardhat always runs the compile task when running scripts with its command
   // line interface.
   //
@@ -27,7 +23,6 @@ async function main() {
   // await hre.run('compile');
 
   console.log("network is", env.network.name);
-  console.log("tenderly rpc is", process.env.ETH_NODE_URI_TENDERLY);
 
   // We get the contract to deploy
   const EurMode = await ethers.getContractFactory("EurMode");
@@ -49,21 +44,21 @@ async function main() {
 
   await eurMode.deployed();
 
-  await env.tenderly.verify({
-    name: "EurMode",
-    address: eurMode.address,
-  });
-  console.log("EURMode deployed to:", eurMode.address);
+  // await env.tenderly.verify({
+  //   name: "EurMode",
+  //   address: eurMode.address,
+  // });
+  // console.log("EURMode deployed to:", eurMode.address);
 
-  await env.tenderly.persistArtifacts({
-    name: "EurMode",
-    address: eurMode.address,
-  });
+  // await env.tenderly.persistArtifacts({
+  //   name: "EurMode",
+  //   address: eurMode.address,
+  // });
 }
 
 // We recommend this pattern to be able to use async/await everywhere
 // and properly handle errors.
-main().catch((error) => {
+deployContract().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });

@@ -6,9 +6,10 @@ import {
   USDC_ADDRESS,
 } from "./constants";
 
-const main = async () => {
+export async function checkPosition() {
   const pool = await ethers.getContractAt("IPool", AAVE_POOL_ADDRESS);
   const usdcReserveData = await pool.getReserveData(USDC_ADDRESS);
+
   const eursReserveData = await pool.getReserveData(EURS_ADDRESS);
 
   const eursATokenAddress = eursReserveData.aTokenAddress;
@@ -40,6 +41,9 @@ const main = async () => {
     usdcATokenBalance,
     eursATokenBalance,
   });
-};
+}
 
-main();
+checkPosition().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

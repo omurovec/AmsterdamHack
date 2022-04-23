@@ -10,7 +10,7 @@ import {
 } from "./constants";
 import { approveDelegation } from "./utils";
 
-async function main() {
+export async function openPosition() {
   const eurMode = await ethers.getContractAt(
     "EurMode",
     "0xb56b55b1e36bdf01e016c30b0a62f9ff745155f4"
@@ -65,11 +65,17 @@ async function main() {
     collateral: collateral.mul(leverage - 1),
   });
 
+  const flashLoanFee = ethers.utils.parseEther("0.09").div(100);
+  const flashLoanMul = ethers.utils.parseEther("1").add(flashLoanFee);
+
   const borrowAmount = await quoter.callStatic.quoteExactOutputSingle(
     USDC_ADDRESS,
     EURS_ADDRESS,
     fees,
-    collateral.mul(leverage - 1),
+    collateral
+      .mul(leverage - 1)
+      .mul(flashLoanMul)
+      .div(ethers.utils.parseEther("1")),
     0
   );
 
@@ -82,4 +88,4 @@ async function main() {
     .takeOutFlashLoan(borrowAmount, collateral, leverage, isLong);
 }
 
-main();
+openPosition();
