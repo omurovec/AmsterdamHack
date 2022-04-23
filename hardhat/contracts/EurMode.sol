@@ -11,7 +11,7 @@ import "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol"
 
 import "@uniswap/v3-core/contracts/interfaces/callback/IUniswapV3SwapCallback.sol";
 
-contract Leverage is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
+contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     // aave flash loan
     IPool public immutable override POOL;
     IPoolAddressesProvider public immutable override ADDRESSES_PROVIDER;
