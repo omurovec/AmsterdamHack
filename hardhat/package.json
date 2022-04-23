@@ -39,5 +39,10 @@
     "@aave/core-v3": "^1.13.1",
     "@openzeppelin/contracts": "^4.5.0",
     "@uniswap/v3-core": "^1.0.1"
+  },
+  "scripts": {
+    "deploy": "hardhat run scripts/deploy.ts --network localhost",
+    "open-position": "hardhat run scripts/openPosition.ts --network localhost",
+    "check-position": "yarn hardhat run scripts/checkPosition.ts --network localhost"
   }
 }

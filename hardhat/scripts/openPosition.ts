@@ -33,14 +33,16 @@ async function main() {
 
   const collateral = ethers.utils.parseUnits("100", decimals);
   const isLong = true;
-  const leverage = 5;
+  const leverage = 2;
 
   await approveDelegation(
+    eursHolder,
     USDC_ADDRESS,
     ethers.constants.MaxUint256,
     eurMode.address
   );
   await approveDelegation(
+    eursHolder,
     EURS_ADDRESS,
     ethers.constants.MaxUint256,
     eurMode.address

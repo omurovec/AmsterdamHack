@@ -78,12 +78,10 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
     ) external {
         IERC20 flashLoanToken = isLong ? base : quote;
 
-
         console.log("transfer tokens");
         flashLoanToken.transferFrom(msg.sender, address(this), collateral);
 
         uint256 flashLoanAmount = collateral * (leverage - 1);
-
 
         console.log("flashloan simple");
         POOL.flashLoanSimple(
@@ -156,7 +154,7 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
 
         uniswap.swap(
             address(this),
-            isLongToken0(isLong), /* zeroForOne*/
+            false, /* zeroForOne*/
             int256(borrowAmount),
             0,
             abi.encode(isLong, borrowAmount, flashLoanAmount + premium)
@@ -169,7 +167,6 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
         int256 amount1Delta,
         bytes calldata data
     ) external override {
-
         console.log("catch callback");
 
         (bool isLong, uint256 borrowAmount, uint256 targetAmount) = abi.decode(
@@ -193,7 +190,6 @@ contract EurMode is IFlashLoanSimpleReceiver, IUniswapV3SwapCallback {
                 : uint256(amount0Delta) > targetAmount,
             "Not enough received"
         );
-
 
         console.log("sacrifice to uni gods");
 

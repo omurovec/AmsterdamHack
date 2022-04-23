@@ -1,10 +1,11 @@
-import { BigNumber } from "ethers";
+import { BigNumber, Signer } from "ethers";
 import { ethers } from "hardhat";
 import { AAVE_POOL_ADDRESS, USDC_ADDRESS } from "./constants";
 
 import { ICreditDelegationToken } from "../typechain";
 
 export async function approveDelegation(
+  holder: Signer,
   token: string,
   amount: BigNumber,
   target: string
@@ -24,5 +25,5 @@ export async function approveDelegation(
     )
   );
 
-  await variableDebtToken.approveDelegation(target, amount);
+  await variableDebtToken.connect(holder).approveDelegation(target, amount);
 }
